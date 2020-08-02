@@ -6,27 +6,29 @@ Simple to use and extend, versioned, api data exporter.
 
 ```ruby
 # to define exporter for Company class
-ApiExporter.define :company do
-  # copy :name property
-  # same as - response[:name] = model.name
-  prop :name
-  prop :address
+class ApiExporter
+  define Company do
+    # copy :name property
+    # same as - response[:name] = model.name
+    prop :name
+    prop :address
 
-  # export user as creator property
-  prop :creator, export(model.user)
-end
+    # export user as creator property
+    prop :creator, export(model.user)
+  end
 
-# define exporter for User class
-ApiExporter.define :user do
-  # same as - prop :company, export(model.company)
-  export :company
+  # define exporter for User class
+  define User do
+    # same as - prop :company, export(model.company)
+    export :company
 
-  prop :name
-  prop :email
+    prop :name
+    prop :email
 
-  # is current user name dux?
-  prop :only_for_dux do
-    user && user.name.include?('dux') ? 'Only for dux' : nil
+    # is current user name dux?
+    prop :only_for_dux do
+      user && user.name.include?('dux') ? 'Only for dux' : nil
+    end
   end
 end
 
@@ -60,7 +62,6 @@ ApiExporter.export @company,
 * class method `filter` will define filter for all objects. Useful to add metadata to all objects
 
 ```ruby
-# add id and _meta property to all exported objects
 class ApiExporter
   # define custom exporter function
   def custom_foo
@@ -69,6 +70,7 @@ class ApiExporter
     end
   end
 
+  # add id and _meta property to all exported objects
   filter do
     # every object has an ID, export it
     prop :id
@@ -83,7 +85,7 @@ class ApiExporter
     }
   end
 
-  define :user do
+  define User do
     prop :name, model.name.capitalize
 
     # proparty can be called by full name and can execute block
@@ -109,7 +111,7 @@ class ApiExporter
   end
 
   # this will define version 2 of User exporter
-  define :user, version: 2 do
+  define User, version: 2 do
     # this will copy all attributes from version 1
     copy 1
 

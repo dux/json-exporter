@@ -26,7 +26,7 @@ ApiExporter.define :company do
   prop :creator, export(model.user)
 end
 
-ApiExporter.define :company, version: 3 do
+ApiExporter.define Company, version: 3 do
   prop :name
   prop :address
   prop :v_check, :v_3
