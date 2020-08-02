@@ -61,46 +61,60 @@ ApiExporter.export @company,
 
 ```ruby
 # add id and _meta property to all exported objects
-ApiExporter.filter do
-  prop :id
-
-  response[:_meta] = {
-    class: model.class.to_s,
-    view_path: model.path,
-    api_path: model.api_path
-  }
-end
-
-ApiExporter.define :user do
-  prop :name, model.name.capitalize
-  property :email do
-    model.email.downcase
-    model.email.downcase
+class ApiExporter
+  # define custom exporter function
+  def custom_foo
+    if model.respond_to?(:baz)
+      param :baz
+    end
   end
 
-  # is current user name dux?
-  if user && user.name.include?('dux')
-    prop :only_for_dux, mode.secret
+  filter do
+    # every object has an ID, export it
+    prop :id
+
+    # call custom exporter function
+    custom_foo
+
+    response[:_meta] = {
+      class: model.class.to_s,
+      view_path: model.path,
+      api_path: model.api_path
+    }
   end
 
-  # export
-  export :company      # same as "prop :company, export(model.company)"
-  export model.company # same
+  define :user do
+    prop :name, model.name.capitalize
 
-  # you can add directly to response
-  response[:foo] = @user.foo
+    # proparty can be called by full name and can execute block
+    property :email do
+      model.email.downcase
+    end
 
-  # same thing, response hash is key indifferent hash (gem hash_wia)
-  # works for props as well
-  response['foo'] = @user.foo
-end
+    # is current user name dux?
+    if user && user.name.include?('dux')
+      prop :only_for_dux, mode.secret
+    end
 
-# this will define version 2 of User exporter
-ApiExporter.define :user, version: 2 do
-  # this will copy all attributes from version 1
-  copy 1
+    # export
+    export :company      # same as "prop :company, export(model.company)"
+    export model.company # same
 
-  prop :new_stuff, @model.v_2_specific
+    # you can add directly to response
+    response[:foo] = @user.foo
+
+    # same thing, response hash is key indifferent hash (gem hash_wia)
+    # works for props as well
+    response['foo'] = @user.foo
+  end
+
+  # this will define version 2 of User exporter
+  define :user, version: 2 do
+    # this will copy all attributes from version 1
+    copy 1
+
+    prop :new_stuff, @model.v_2_specific
+  end
 end
 
 ApiExporter.export @user # no new_stuff
