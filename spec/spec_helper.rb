@@ -1,7 +1,7 @@
 require 'amazing_print'
 require 'active_support/all'
 
-require_relative '../lib/api-exporter'
+require_relative '../lib/json-exporter'
 
 # basic config
 RSpec.configure do |config|

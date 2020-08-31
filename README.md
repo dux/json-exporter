@@ -1,12 +1,16 @@
-## ApiExporter
+## JSON Exporter
 
-Simple to use and extend, versioned, api data exporter.
+Simple to use and extend, versioned, nested objects support, data exporter.
 
-## Look and feel
+### Installation
+
+`gem 'json-exporter'`
+
+### Look and feel
 
 ```ruby
 # to define exporter for Company class
-class ApiExporter
+class JsonExporter
   define Company do
     # copy :name property
     # same as - response[:name] = model.name
@@ -33,7 +37,7 @@ class ApiExporter
 end
 
 # to export
-ApiExporter.export @company,
+JsonExporter.export @company,
   user: Current.user, # defnied @user for exporter
   version: 3,         # define version against you want to export (default 1)
   depth: 2            # how deep do you want nesting to go (2 default)
@@ -49,7 +53,7 @@ ApiExporter.export @company,
 }
 ```
 
-## Params in details with exampels
+### Params in details + examples
 
 * model that is exported is available via `@model` or `model`
 * current user (if provided) is available as `@user` or `user`. You can export date based on a user
@@ -62,7 +66,7 @@ ApiExporter.export @company,
 * class method `filter` will define filter for all objects. Useful to add metadata to all objects
 
 ```ruby
-class ApiExporter
+class JsonExporter
   # define custom exporter function
   def custom_foo
     if model.respond_to?(:baz)
@@ -119,8 +123,8 @@ class ApiExporter
   end
 end
 
-ApiExporter.export @user # no new_stuff
-ApiExporter.export @user, # new_stuff!
+JsonExporter.export @user # no new_stuff
+JsonExporter.export @user, # new_stuff!
   version: 2,
   user: User.current
 ``

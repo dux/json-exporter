@@ -1,6 +1,6 @@
 require 'hash_wia'
 
-class ApiExporter
+class JsonExporter
   EXPORTERS ||= {
     __filter: proc {}
   }
@@ -31,7 +31,7 @@ class ApiExporter
     end
 
     unless opts.is_a?(Hash)
-      raise ArgumentError, 'ApiExporter opts is not a hash'
+      raise ArgumentError, 'JsonExporter opts is not a hash'
     end
 
     opts[:version]       ||= opts.delete(:v) || 1
@@ -40,7 +40,7 @@ class ApiExporter
     opts[:current_depth] += 1
 
     unallowed = opts.keys - %i(user version depth current_depth exporter)
-    raise ArgumentError, 'Unallowed key ApiExporter option found: %s' % unallowed.first if unallowed.first
+    raise ArgumentError, 'Unallowed key JsonExporter option found: %s' % unallowed.first if unallowed.first
 
     @model    = model
     @version  = opts[:version]
@@ -69,7 +69,12 @@ class ApiExporter
       name, cmodel = name.class.to_s.underscore.to_sym, name
     end
 
-    @response[name] = ApiExporter.export(cmodel, @opts)
+    @response[name] =
+      if [Array].include?(cmodel.class)
+        cmodel
+      else
+        JsonExporter.export(cmodel, @opts)
+      end
   end
 
   # add property to exporter
@@ -103,7 +108,7 @@ class ApiExporter
       end
     end
 
-    raise('Exporter "%s" (:%s) not found' % [exporter, exporter.underscore])
+    raise('Exporter "%s" (:%s) not found' % [exporter, exporter.to_s.underscore])
   end
 end
 
