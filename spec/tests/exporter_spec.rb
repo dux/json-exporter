@@ -154,12 +154,6 @@ describe JsonExporter do
     expect(result[:calc]).to eq(15)
   end
 
-  it 'uses hash with indiferent access as base' do
-    data   = HashWia.new({ name: 'foo', surname: 'bar', num: 5 })
-    result = GenericExporter.export data, wia: true
-    expect(result.calc).to eq(15)
-  end
-
   it 'applies filters as it should' do
     data   = HashWia.new({ name: 'dux', num: 1 })
     result = GenericExporterChild.export data

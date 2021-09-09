@@ -1,8 +1,6 @@
 class JsonExporter
   EXPORTERS ||= {}
-  FILTERS   ||= {}
-
-  attr_accessor :response, :user, :model, :meta
+  FILTERS   ||= {b:{}, a:{}}
 
   class << self
     def define *args, &block
@@ -22,12 +20,19 @@ class JsonExporter
       new(name, opts).render
     end
 
-    def filter &block
-      FILTERS[to_s] = block
+    def before &block
+      FILTERS[:b][to_s] = block
     end
+
+    def filter &block
+      FILTERS[:a][to_s] = block
+    end
+    alias :after :filter
   end
 
   ###
+
+  attr_accessor :response, :user, :model, :opts
 
   def initialize model, opts={}
     if model.is_a?(String) || model.is_a?(Symbol)
@@ -54,8 +59,10 @@ class JsonExporter
   end
 
   def render
+    exporter_apply_filters :b
     instance_exec &@block
-    exporter_apply_filters
+    exporter_apply_filters :a
+
     @opts.compact ? @response.compact : @response
   end
 
@@ -67,21 +74,40 @@ class JsonExporter
     end
   end
 
+  def meta arg = nil
+    if arg
+      if !block_given?
+        raise ArgumentError.new('Block not given for meta with param')
+      elsif @meta[arg]
+        yield
+      end
+    else
+      @meta
+    end
+  end
+
   private
 
   # export object
-  def export name
+  # export :org_users, key: :users
+  def export name, opts = {}
     return if @opts[:current_depth] > @opts[:depth]
 
     if name.is_a?(Symbol)
       name, cmodel = name, @model.send(name)
+
+      if cmodel.respond_to?(:all) && cmodel.respond_to?(:first)
+        cmodel = cmodel.all.map { |el| JsonExporter.export(el, @opts.dup) }
+      end
     else
       name, cmodel = name.class.to_s.underscore.to_sym, name
     end
 
-    @response[name] =
+    @response[opts[:key] || name] =
       if [Array].include?(cmodel.class)
         cmodel
+      elsif cmodel.nil?
+        nil
       else
         JsonExporter.export(cmodel, @opts)
       end
@@ -90,7 +116,9 @@ class JsonExporter
   # add property to exporter
   def property name, data=:_undefined
     if block_given?
-      data = yield
+      hash_data = {}
+      data = yield hash_data
+      data = hash_data if hash_data.keys.first
     elsif data == :_undefined
       data = @model.send(name)
     end
@@ -113,11 +141,17 @@ class JsonExporter
     EXPORTERS[exporter.to_s] || raise('Exporter "%s" (:%s) not found' % [exporter, exporter.to_s.underscore])
   end
 
-  def exporter_apply_filters
+  def exporter_apply_filters kind
     for klass in self.class.ancestors.reverse.map(&:to_s)
-      if filter = FILTERS[klass]
+      if filter = FILTERS[kind][klass]
         instance_exec(&filter) if filter
       end
+    end
+  end
+
+  def merge object
+    object.each do |k, v|
+      prop k.to_sym, v
     end
   end
 end

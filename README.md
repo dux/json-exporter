@@ -46,6 +46,10 @@ class JsonExporter
     prop :only_for_dux do
       user && user.name.include?('dux') ? 'Only for dux' : nil
     end
+
+    meta :foo do
+      # run only if meta[:foo] is truthy
+    end
   end
 end
 
@@ -139,14 +143,18 @@ end
 # define custom exporter and use as
 # CustomExporter.export(@model)
 class CustomExporter < JsonExporter
-  filter do
+  before do
     # this runs first
+  end
+
+  after do
+    # this runs after params export
   end
 def
 
 class ChidExporter < CustomExporter
-  filter do
-    # this runs second
+  after do
+    # this runs after params export
   end
 def
 
