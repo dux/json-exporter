@@ -14,6 +14,10 @@ and get better insight on look and feel.
 ```ruby
 # to define exporter for Company class
 class JsonExporter
+  before do
+    meta[:version] ||= 1
+  end
+
   define Company do
     # copy :name property
     # same as - response[:name] = model.name
@@ -26,41 +30,38 @@ class JsonExporter
 
   # define exporter for User class
   define User do
-    # same as - prop :company, export(model.company)
-    export :company
-
+    # same as prop :name, model.name
     prop :name
-    prop :email
 
     prop :calc do
       # access passed @model vi @model or model
       model.num * 4
     end
 
+    # same as - prop :company, export(model.company)
+    export :company
+
+    # attact full export of model.company as company_full property
+    prop :company_full, export(model.company, full: true)
+
     # add only to version 3+
-    version 3 do
+    if meta.version > 2 do
       prop :extra, :value_1
     end
 
     # is current user name dux?
     prop :only_for_dux do
-      user && user.name.include?('dux') ? 'Only for dux' : nil
-    end
-
-    meta :foo do
-      # run only if meta[:foo] is truthy
+      meta.user && meta.user.name.include?('dux') ? 'Only for dux' : nil
     end
   end
 end
 
-# to export
-JsonExporter.export @company,
-  user: Current.user,      # defnied @user for exporter
-  version: 2,              # define version against you want to export (default 1)
-  depth: 2,                # how deep do you want nesting to go (2 default)
-  compact: true,           # remove keys with null values, default false
-  wia: true,               # allow meta and response access as hash with indifferent accecss, deafult false
-  meta: { ip: request.ip } # pass meta info
+# example, to export
+JsonExporter.export(@company, {
+  user: Current.user,      # defnies current user for exporter, export based on user privileges
+  full: true,              # define that you want full object, not just
+  exporter_depth: 2        # how deep do you want nesting to go in case of recursive export (default 2)
+})
 
 # Example export
 {
@@ -76,13 +77,13 @@ JsonExporter.export @company,
 ### Params in details + examples
 
 * model that is exported is available via `@model` or `model`
-* current user (if provided) is available as `@user` or `user`. You can export date based on a user
+* current user (if provided via :user param) is available as `@user` or `user`. You can export date based on a user
 * predefined methods
   * `property` (or `prop`) - export single property
-  * `export` - export model
-  * `response` - add directly to response
-  * `version` - get current version or execute block
-* class method `filter` will define filter for all objects. Useful to add metadata to all objects
+  * `export` - export full model
+  * `response` - add directly to response hash
+* class block `before` will define before filter for all objects. Useful to prepare opts before rendering
+* class block `after` will define after filter for all objects. Useful to add metadata to all objects
 
 ```ruby
 class JsonExporter
@@ -131,41 +132,55 @@ class JsonExporter
     export :company      # same as "prop :company, export(model.company)"
     export model.company # same if model.company class name is Company
 
-    # you can add directly to response
+    # you can add directly to response in any way
     response[:foo] = @user.foo
-
-    # works if wia: true is passed
-    response.foo = @user.foo
     response['foo'] = @user.foo
+    response.foo = @user.foo
   end
 end
+```
 
+### Params in details + examples
+
+Custom Export classes, class inheritance + bofore and after filters
+
+```ruby
 # define custom exporter and use as
 # CustomExporter.export(@model)
 class CustomExporter < JsonExporter
   before do
     # this runs first
+    response[:foo] = [1]
   end
 
   after do
-    # this runs after params export
+    response[:foo] = response[:foo].join('-')
   end
 def
 
 class ChidExporter < CustomExporter
-  after do
-    # this runs after params export
+  before do
+    response[:foo].push = 2
+  end
+
+  define do
+    prop :name
+
+    # once defined, params in opts and response can be accessed as method names
+    response.foo.push 3
   end
 def
 
-JsonExporter.export @user # no new_stuff
-JsonExporter.export @user, # new_stuff!
-  version: 2,
-  user: User.current
+ChidExporter.export({name: 'Dux'}) # before -> define -> aftetr -> render json
+{
+  name: 'Dux',
+  foo: '1-2-3'
+}
 ```
 
 ## Tips
 
-* If you want to covert hash keys to string keys, for example to use in [Liquid templateing](https://shopify.github.io/liquid/), use `@response.stringify_keys`
-* If you want to use coverted hash in code, you can covert it to hash with indifferent access, using `JsonExporter.export(@model, wia: true)`
-* Hash with indifferent access module in use is this one: [https://github.com/dux/hash_wia](https://github.com/dux/hash_wia)
+* If you want to covert hash keys to string keys, for example to use in
+  [Liquid templateing](https://shopify.github.io/liquid/), use `@response.stringify_keys`
+* If you do not want to use hash with indifferent access for response
+  ([https://github.com/dux/hash_wia](https://github.com/dux/hash_wia)), set `JsonExporter.disable_wia!`

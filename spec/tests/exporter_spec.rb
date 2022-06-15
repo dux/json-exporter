@@ -18,36 +18,42 @@ User = Struct.new(:name, :email) do
   end
 end
 
-JsonExporter.define :company do
-  prop :name
-  prop :address
-  prop :v_check, :v_1
-
-  version 3 do
-    prop :v_check, :v_3
+class JsonExporter
+  before do
+    opts[:version] ||= 1
   end
 
-  if version >= 4
-    prop :extra, :spicy
+  define :company do
+    prop :name
+    prop :address
+    prop :v_check, :version_one
+
+    if opts.version >= 3
+      prop :v_check, :version_three
+    end
+
+    if opts.version >= 4
+      prop :extra, :spicy
+    end
+
+    prop :creator, export(model.user)
   end
 
-  prop :creator, export(model.user)
-end
+  define :generic_name do
+    prop :name
 
-JsonExporter.define :generic_name do
-  prop :name
-
-  response[:foo] = :bar
+    response[:foo] = :bar
+  end
 end
 
 class JsonExporter
   define User do
     export :company
 
-    prop :v_check, :v_1
+    prop :v_check, :version_one
 
-    version 3 do
-      prop :v_check, :v_3
+    if opts.version == 3
+      prop :v_check, :version_three
     end
 
     prop :name
@@ -59,18 +65,22 @@ class JsonExporter
 end
 
 # default export after filter
-JsonExporter.filter do
+JsonExporter.after do
   prop :foo, :bar
 
   response[:meta] = {
-    class: model.class.to_s,
+    class: model.class.to_s
   }
 end
 
 class GenericExporter < JsonExporter
-  filter do
-    response[:history] ||= []
-    response[:history].push :parent
+  before do
+    response[:bhistory] = [:first]
+  end
+
+  after do
+    response[:ahistory] ||= []
+    response[:ahistory].push :parent
   end
 
   define do
@@ -81,13 +91,19 @@ class GenericExporter < JsonExporter
 end
 
 class GenericExporterChild < GenericExporter
-  filter do
-    response[:history].push :child
+  before do
+    response[:bhistory].push :second
+  end
+
+  after do
+    response[:ahistory].push :child
   end
 
   define do
     prop :name
-    prop :history, [:start]
+    prop :ahistory, [:start]
+
+    response[:bhistory].push :third
 
     prop(:calc) { model.num * 3 }
   end
@@ -126,13 +142,14 @@ describe JsonExporter do
 
   it 'exports deep if needed' do
     user     = User.new 'dux', 'dux@net.hr'
-    response = JsonExporter.export user, user: user, depth: 3
+    response = JsonExporter.export user, user: user, export_depth: 3
+
     expect(response[:company][:creator][:company][:name]).to eq('ACME')
   end
 
   it 'uses after filter' do
     user     = User.new 'dux', 'dux@net.hr'
-    response = JsonExporter.export user, user: user, depth: 3
+    response = JsonExporter.export user, user: user, export_depth: 3
     expect(response[:foo]).to eq(:bar)
     expect(response[:meta][:class]).to eq('User')
   end
@@ -140,11 +157,11 @@ describe JsonExporter do
   it 'uses right versions' do
     user     = User.new 'dux', 'dux@net.hr'
     response = JsonExporter.export user, version: 3
-    expect(response[:company][:v_check]).to eq(:v_3)
+    expect(response[:company][:v_check]).to eq(:version_three)
     expect(response[:company][:extra]).to eq(nil)
 
     response = JsonExporter.export user, version: 4
-    expect(response[:company][:v_check]).to eq(:v_3)
+    expect(response[:company][:v_check]).to eq(:version_three)
     expect(response[:company][:extra]).to eq(:spicy)
   end
 
@@ -157,6 +174,8 @@ describe JsonExporter do
   it 'applies filters as it should' do
     data   = HashWia.new({ name: 'dux', num: 1 })
     result = GenericExporterChild.export data
-    expect(result[:history].join('-')).to eq('start-parent-child')
+
+    expect(result[:bhistory].join('-')).to eq('first-second-third')
+    expect(result[:ahistory].join('-')).to eq('start-parent-child')
   end
 end

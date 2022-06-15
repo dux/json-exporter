@@ -1,9 +1,9 @@
-# shortcut for JsonExporter.define(name) {}
+# shortcut for JsonExporter.define(:page) {}
 # JsonExporter :page do
 #   prop :name
 # end
 
-# shortcut for JsonExporter.new(object).render
+# shortcut for JsonExporter.new(Page.first).render
 # JsonExporter Page.first
 
 def JsonExporter name_or_object, opts = {}, &block

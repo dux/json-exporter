@@ -1,6 +1,7 @@
 class JsonExporter
   EXPORTERS ||= {}
   FILTERS   ||= {b:{}, a:{}}
+  OPTS      ||= {}
 
   class << self
     def define *args, &block
@@ -24,38 +25,33 @@ class JsonExporter
       FILTERS[:b][to_s] = block
     end
 
-    def filter &block
+    def after &block
       FILTERS[:a][to_s] = block
     end
-    alias :after :filter
+
+    def disable_wia!
+      OPTS[:wia] = false
+    end
   end
 
   ###
 
-  attr_accessor :response, :user, :model, :opts
+  attr_accessor :response, :model, :opts, :user
 
   def initialize model, opts={}
     if model.is_a?(String) || model.is_a?(Symbol)
       raise ArgumentError, 'model argument is not model instance (it is %s)' % model.class
     end
 
-    opts[:version] ||= opts.delete(:v) || 1
+    opts[:export_depth]  ||= 2 # 2 is default depth. if we encounter nested recursive exports, will go only to depth 2
+    opts[:current_depth] ||= 0
+    opts[:current_depth] += 1
 
-    if opts.class == Hash
-      opts = opts.to_hwia :version, :user, :depth, :current_depth, :exporter, :meta, :wia, :compact
-    end
-
-    opts.meta          ||= {}
-    opts.depth         ||= 2 # 2 is default depth
-    opts.current_depth ||= 0
-    opts.current_depth += 1
-
-    @model    = model
     @user     = opts[:user]
-    @opts     = opts
-    @meta     = opts.wia ? opts.meta.to_hwia : opts.meta
+    @model    = model
+    @opts     = opts.to_hwia
     @block    = exporter_find_class
-    @response = opts.wia ? {}.to_hwia : {}
+    @response = OPTS[:wia] == false ? {} : {}.to_hwia
   end
 
   def render
@@ -63,27 +59,7 @@ class JsonExporter
     instance_exec &@block
     exporter_apply_filters :a
 
-    @opts.compact ? @response.compact : @response
-  end
-
-  def version version_num=nil, &block
-    return @opts.version unless version_num
-
-    if block && @opts.version >= version_num
-      instance_exec &block
-    end
-  end
-
-  def meta arg = nil
-    if arg
-      if !block_given?
-        raise ArgumentError.new('Block not given for meta with param')
-      elsif @meta[arg]
-        yield
-      end
-    else
-      @meta
-    end
+    @response
   end
 
   private
@@ -91,7 +67,7 @@ class JsonExporter
   # export object
   # export :org_users, key: :users
   def export name, opts = {}
-    return if @opts[:current_depth] > @opts[:depth]
+    return if @opts[:current_depth] > @opts[:export_depth]
 
     if name.is_a?(Symbol)
       name, cmodel = name, @model.send(name)
@@ -132,7 +108,7 @@ class JsonExporter
     exporter =
     if self.class == JsonExporter
       # JsonExporter.define User do
-      @opts.exporter ? @opts.exporter.to_s.classify : model.class
+      @opts[:exporter] ? @opts[:exporter].to_s.classify : model.class
     else
       # class FooExporter< JsonExporter
       self.class
