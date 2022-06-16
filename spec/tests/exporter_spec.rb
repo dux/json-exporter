@@ -18,7 +18,7 @@ User = Struct.new(:name, :email) do
   end
 end
 
-class JsonExporter
+class SimpleExporter < JsonExporter
   before do
     opts[:version] ||= 1
   end
@@ -44,9 +44,7 @@ class JsonExporter
 
     response[:foo] = :bar
   end
-end
 
-class JsonExporter
   define User do
     export :company
 
@@ -65,7 +63,7 @@ class JsonExporter
 end
 
 # default export after filter
-JsonExporter.after do
+SimpleExporter.after do
   prop :foo, :bar
 
   response[:meta] = {
@@ -73,7 +71,7 @@ JsonExporter.after do
   }
 end
 
-class GenericExporter < JsonExporter
+class GenericExporter < SimpleExporter
   before do
     response[:bhistory] = [:first]
   end
@@ -117,7 +115,7 @@ describe JsonExporter do
     address = 'Nowhere 123'
 
     company = Company.new(name, address)
-    result  = JsonExporter.export(company)
+    result  = SimpleExporter.export(company)
 
     expect(result[:name]).to eq(name)
     expect(result[:address]).to eq(address)
@@ -125,42 +123,42 @@ describe JsonExporter do
 
   it 'exports complex object' do
     some_user = User.new 'dux', 'dux@net.hr'
-    response  = JsonExporter.export some_user, user: some_user
+    response  = SimpleExporter.export some_user, user: some_user
     expect(response[:is_admin]).to eq(true)
 
     user     = User.new 'dino', 'dux@net.hr'
-    response = JsonExporter.export user, user: user
+    response = SimpleExporter.export user, user: user
     expect(response[:is_admin]).to eq(false)
   end
 
   it 'exports naked object' do
     company = Company.new 'ACME 1', 'Nowhere 123'
-    data = JsonExporter.export company, exporter: :generic_name
-    expect(data[:address]).to be_nil
+    data = SimpleExporter.export company, exporter: :generic_name
+    expect(data[:address]).to be(nil)
     expect(data[:foo]).to be(:bar)
   end
 
   it 'exports deep if needed' do
     user     = User.new 'dux', 'dux@net.hr'
-    response = JsonExporter.export user, user: user, export_depth: 3
+    response = SimpleExporter.export user, user: user, export_depth: 3
 
     expect(response[:company][:creator][:company][:name]).to eq('ACME')
   end
 
   it 'uses after filter' do
     user     = User.new 'dux', 'dux@net.hr'
-    response = JsonExporter.export user, user: user, export_depth: 3
+    response = SimpleExporter.export user, user: user, export_depth: 3
     expect(response[:foo]).to eq(:bar)
     expect(response[:meta][:class]).to eq('User')
   end
 
   it 'uses right versions' do
     user     = User.new 'dux', 'dux@net.hr'
-    response = JsonExporter.export user, version: 3
+    response = SimpleExporter.export user, version: 3
     expect(response[:company][:v_check]).to eq(:version_three)
     expect(response[:company][:extra]).to eq(nil)
 
-    response = JsonExporter.export user, version: 4
+    response = SimpleExporter.export user, version: 4
     expect(response[:company][:v_check]).to eq(:version_three)
     expect(response[:company][:extra]).to eq(:spicy)
   end

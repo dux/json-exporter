@@ -106,7 +106,9 @@ class JsonExporter
   # finds versioned exporter
   def exporter_find_class version=nil
     exporter =
-    if self.class == JsonExporter
+    if @opts[:exporter]
+      @opts[:exporter].to_s.classify
+    elsif self.class == JsonExporter
       # JsonExporter.define User do
       @opts[:exporter] ? @opts[:exporter].to_s.classify : model.class
     else
@@ -114,7 +116,7 @@ class JsonExporter
       self.class
     end
 
-    EXPORTERS[exporter.to_s] || raise('Exporter "%s" (:%s) not found' % [exporter, exporter.to_s.underscore])
+    EXPORTERS[exporter.to_s] || EXPORTERS[model.class.to_s] || raise('Exporter "%s" (:%s) not found' % [exporter, exporter.to_s.underscore])
   end
 
   def exporter_apply_filters kind

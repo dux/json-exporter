@@ -140,9 +140,9 @@ class JsonExporter
 end
 ```
 
-### Params in details + examples
+### Custom export classes
 
-Custom Export classes, class inheritance + bofore and after filters
+Custom export classes, class inheritance + bofore and after filters
 
 ```ruby
 # define custom exporter and use as
@@ -156,11 +156,11 @@ class CustomExporter < JsonExporter
   after do
     response[:foo] = response[:foo].join('-')
   end
-def
+end
 
-class ChidExporter < CustomExporter
+class ChildExporter < CustomExporter
   before do
-    response[:foo].push = 2
+    response[:foo].push 2
   end
 
   define do
@@ -169,13 +169,32 @@ class ChidExporter < CustomExporter
     # once defined, params in opts and response can be accessed as method names
     response.foo.push 3
   end
-def
+end
 
-ChidExporter.export({name: 'Dux'}) # before -> define -> aftetr -> render json
+ChidExporter.export(Struct.new(:name).new('Dux')) # before -> define -> aftetr -> render json
 {
   name: 'Dux',
   foo: '1-2-3'
 }
+```
+
+### Custom export names
+
+Define multiple exporters, and pipe same object trough multiple exporters to get different results
+
+```ruby
+class SomeExporter < JsonExporter
+  define :foo_1 do
+    # ...
+  end
+
+  define :foo_2 do
+    # ...
+  end
+end
+
+SomeExporter.export(@model, exporter: :foo_1)
+SomeExporter.export(@model, exporter: :foo_2)
 ```
 
 ## Tips
