@@ -10,6 +10,11 @@ class FooCustomExporter < JsonExporter
   end
 end
 
+class BarExporter < JsonExporter
+  define do
+    prop :sum
+  end
+end
 
 ###
 
@@ -24,5 +29,10 @@ describe FooCustomExporter do
   it 'expects 4' do
     export = FooCustomExporter.export(model, exporter: 'Export4')
     expect(export[:num]).to eq(8)
+  end
+
+  it 'expects 2' do
+    export = BarExporter.export(model)
+    expect(export[:sum]).to eq(2)
   end
 end

@@ -2,86 +2,127 @@
 
 Simple to use and extend, versioned, nested objects support, data exporter.
 
+Idea is simple
+
+* params passed to exporter are available via opts hash (with indifferent access)
+* response is available as hash (with indifferent access)
+
 ### Installation
 
 `gem 'json-exporter'`
 
-### Look and feel
+### Full example with all featuters annotated
+
+We will do simple real life API json response formater. It needs to prepare values, filter and format the result.
+
+```ruby
+class ApiExporter < JsonExporter
+  before do
+    opts[:full] ||= false
+  end
+
+  after do
+    if json[:email]
+      json[:email] = json[:email].downcase
+    end
+  end
+end
+
+class UserExporter < ApiExporter
+  define do
+    prop :name
+    prop :email
+
+    if opts[:full]
+      prop :bio, 'Full user bio: %s' % model.bio
+    end
+  end
+end
+
+# usage and response
+
+User = Struct.new(:name, :email, :bio)
+user = User.new 'Dux', 'DUX+baz@foo.bar', 'charming chonker'
+
+# UserExporter.export(user)
+# -> {name:'Dux', email: 'dux@foo.bar'
+
+# UserExporter.export(user, full: true)
+# -> {name:'Dux', email: 'dux@foo.bar', bio: 'Full user bio: %s' % user.bio
+```
+
+### Protected methods and variables
+
+```ruby
+opts                      # passed in opts
+before                    # run before export, modify opts
+after                     # run before export, modify json response
+prop or property          # add property to export model
+model or @model           # passed in export model
+json or @json or response # json response hash direct access
+export                    # export other model, quick access
+```
+
+### Features in detail
 
 You can read the [rspec test](https://github.com/dux/json-exporter/blob/master/spec/tests/exporter_spec.rb)
 and get better insight on look and feel.
 
 ```ruby
-# to define exporter for Company class
 class JsonExporter
+  # gets converted to
+  # def before
+  #   super
+  #   meta[:version] ||= 1
+  # end
   before do
     meta[:version] ||= 1
   end
 
   define Company do
     # copy :name property
-    # same as - response[:name] = model.name
+    # same as -> prop :name, model.name
+    # same as -> json[:name] = model.name
     prop :name
-    prop :address
 
     # export user as creator property
     prop :creator, export(model.user)
   end
 
-  # define exporter for User class
+  # define exporter for User class,
+  # JsonExporter(User)
+  # JsonExporter.export(@user)
+  # JsonExporter.new(@user).render
   define User do
-    # same as prop :name, model.name
-    prop :name
-
+    # proparty can be called by full name and can execute block
     prop :calc do
       # access passed @model vi @model or model
+      # add
       model.num * 4
     end
 
     # same as - prop :company, export(model.company)
+    # you can pass opts too - prop :company, export(model.company, full: true)
     export :company
 
     # attact full export of model.company as company_full property
     prop :company_full, export(model.company, full: true)
 
-    # add only to version 3+
-    if meta.version > 2 do
+    # add prop only if opts version is 2+
+    if opts.version > 2 do
       prop :extra, :value_1
-    end
-
-    # is current user name dux?
-    prop :only_for_dux do
-      meta.user && meta.user.name.include?('dux') ? 'Only for dux' : nil
     end
   end
 end
-
-# example, to export
-JsonExporter.export(@company, {
-  user: Current.user,      # defnies current user for exporter, export based on user privileges
-  full: true,              # define that you want full object, not just
-  exporter_depth: 2        # how deep do you want nesting to go in case of recursive export (default 2)
-})
-
-# Example export
-{
-  name: "ACME",
-  address: "Somewhere 1",
-  creator: {
-    name: "Dux",
-    email: "foo@bar.baz"
-  }
-}
 ```
 
 ### Params in details + examples
 
 * model that is exported is available via `@model` or `model`
-* current user (if provided via :user param) is available as `@user` or `user`. You can export date based on a user
 * predefined methods
   * `property` (or `prop`) - export single property
   * `export` - export full model
-  * `response` - add directly to response hash
+  * `json (or response)` - add directly to response hash
 * class block `before` will define before filter for all objects. Useful to prepare opts before rendering
 * class block `after` will define after filter for all objects. Useful to add metadata to all objects
 
@@ -95,87 +136,40 @@ class JsonExporter
   end
 
   # add id and _meta property to all exported objects
-  # filter will run after transformation
-  filter do
+  # after filter will run after transformation
+  after do
     # every object has an ID, export it
     prop :id
 
     # call custom exporter function
     custom_foo
 
-    response[:_meta] = {
+    # append medtadata
+    json[:_meta] = {
       class: model.class.to_s,
       view_path: model.path,
       api_path: model.api_path
     }
   end
 
+  # same as CompanyUser
   define :company_user do
-    # same as CompanyUser
   end
 
   define User do
     prop :name, model.name.capitalize
 
-    # proparty can be called by full name and can execute block
-    property :email do
-      model.email.downcase
-    end
-
-    # user is passed as user: @user attribute
-    # is current user name dux?
-    if user && user.name.include?('dux')
-      prop :only_for_dux, mode.secret
-    end
-
     # export
     export :company      # same as "prop :company, export(model.company)"
     export model.company # same if model.company class name is Company
 
-    # you can add directly to response in any way
-    response[:foo] = @user.foo
-    response['foo'] = @user.foo
-    response.foo = @user.foo
+    # you can add directly to response in 3 ways
+    # disable this feature with JsonExporter.disable_wia!
+    json[:foo]  = @user.foo  # as symbol
+    json['foo'] = @user.foo # string
+    json.foo    = @user.foo    # method
   end
 end
-```
-
-### Custom export classes
-
-Custom export classes, class inheritance + bofore and after filters
-
-```ruby
-# define custom exporter and use as
-# CustomExporter.export(@model)
-class CustomExporter < JsonExporter
-  before do
-    # this runs first
-    response[:foo] = [1]
-  end
-
-  after do
-    response[:foo] = response[:foo].join('-')
-  end
-end
-
-class ChildExporter < CustomExporter
-  before do
-    response[:foo].push 2
-  end
-
-  define do
-    prop :name
-
-    # once defined, params in opts and response can be accessed as method names
-    response.foo.push 3
-  end
-end
-
-ChidExporter.export(Struct.new(:name).new('Dux')) # before -> define -> aftetr -> render json
-{
-  name: 'Dux',
-  foo: '1-2-3'
-}
 ```
 
 ### Custom export names

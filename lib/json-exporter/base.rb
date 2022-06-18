@@ -1,6 +1,6 @@
 class JsonExporter
   EXPORTERS ||= {}
-  FILTERS   ||= {b:{}, a:{}}
+  FILTERS   ||= {before:{}, after:{}}
   OPTS      ||= {}
 
   class << self
@@ -17,28 +17,37 @@ class JsonExporter
       EXPORTERS[name] = block
     end
 
-    def export name, opts={}
-      new(name, opts).render
-    end
-
-    def before &block
-      FILTERS[:b][to_s] = block
-    end
-
-    def after &block
-      FILTERS[:a][to_s] = block
+    def export name, opts = nil
+      new(name, opts || {}).render
     end
 
     def disable_wia!
       OPTS[:wia] = false
     end
+
+    def before &block
+      __define_filter :before, &block
+    end
+
+    def after &block
+      __define_filter :after, &block
+    end
+
+    def __define_filter name, &block
+      define_method name do
+        super() if self.class != JsonExporter
+        instance_exec &block
+      end
+    end
   end
 
   ###
 
-  attr_accessor :response, :model, :opts, :user
+  attr_accessor :json, :model, :opts, :user
 
-  def initialize model, opts={}
+  alias :response :json
+
+  def initialize model, opts = {}
     if model.is_a?(String) || model.is_a?(Symbol)
       raise ArgumentError, 'model argument is not model instance (it is %s)' % model.class
     end
@@ -47,20 +56,24 @@ class JsonExporter
     opts[:current_depth] ||= 0
     opts[:current_depth] += 1
 
-    @user     = opts[:user]
-    @model    = model
-    @opts     = opts.to_hwia
-    @block    = exporter_find_class
-    @response = OPTS[:wia] == false ? {} : {}.to_hwia
+    @user  = opts[:user]
+    @model = model
+    @opts  = opts.to_hwia
+    @block = __find_exporter
+    @json  = OPTS[:wia] == false ? {} : {}.to_hwia
   end
 
   def render
-    exporter_apply_filters :b
+    before
     instance_exec &@block
-    exporter_apply_filters :a
+    after
 
-    @response
+    @json
   end
+
+  def before; end
+
+  def after; end
 
   private
 
@@ -79,18 +92,17 @@ class JsonExporter
       name, cmodel = name.class.to_s.underscore.to_sym, name
     end
 
-    @response[opts[:key] || name] =
-      if [Array].include?(cmodel.class)
-        cmodel
-      elsif cmodel.nil?
-        nil
-      else
-        JsonExporter.export(cmodel, @opts)
-      end
+    @json[opts[:key] || name] = if [Array].include?(cmodel.class)
+      cmodel
+    elsif cmodel.nil?
+      nil
+    else
+      JsonExporter.export(cmodel, @opts)
+    end
   end
 
   # add property to exporter
-  def property name, data=:_undefined
+  def property name, data = :_undefined
     if block_given?
       hash_data = {}
       data = yield hash_data
@@ -99,38 +111,21 @@ class JsonExporter
       data = @model.send(name)
     end
 
-    @response[name] = data unless data.nil?
+    @json[name] = data unless data.nil?
   end
   alias :prop :property
 
-  # finds versioned exporter
-  def exporter_find_class version=nil
-    exporter =
-    if @opts[:exporter]
+  def __find_exporter version = nil
+    exporter = if @opts[:exporter]
+      # if exporter is defined, return custom exporter
       @opts[:exporter].to_s.classify
     elsif self.class == JsonExporter
-      # JsonExporter.define User do
       @opts[:exporter] ? @opts[:exporter].to_s.classify : model.class
     else
-      # class FooExporter< JsonExporter
       self.class
     end
 
     EXPORTERS[exporter.to_s] || EXPORTERS[model.class.to_s] || raise('Exporter "%s" (:%s) not found' % [exporter, exporter.to_s.underscore])
-  end
-
-  def exporter_apply_filters kind
-    for klass in self.class.ancestors.reverse.map(&:to_s)
-      if filter = FILTERS[kind][klass]
-        instance_exec(&filter) if filter
-      end
-    end
-  end
-
-  def merge object
-    object.each do |k, v|
-      prop k.to_sym, v
-    end
   end
 end
 
