@@ -18,6 +18,21 @@ end
 
 ###
 
+class Pet
+  def kind
+    'dog'
+  end
+end
+
+class PetExporter < JsonExporter
+  define do
+    property :kind
+    property :klass, self.class
+  end
+end
+
+###
+
 describe FooCustomExporter do
   let!(:model) { Struct.new(:sum).new(2) }
 
@@ -34,5 +49,12 @@ describe FooCustomExporter do
   it 'expects 2' do
     export = BarExporter.export(model)
     expect(export[:sum]).to eq(2)
+  end
+
+  it 'expects to find a pet class' do
+    exported1 = PetExporter.export(Pet.new)
+    expect(exported1).to eq({kind: 'dog', klass: PetExporter})
+
+    expect{ JsonExporter.export(Pet.new) }.to raise_error(RuntimeError)
   end
 end

@@ -121,7 +121,7 @@ class JsonExporter
     exporter = if @opts[:exporter]
       INFLECTOR.classify(@opts[:exporter].to_s)
     elsif self.class == JsonExporter
-      @opts[:exporter] ? INFLECTOR.classify(@opts[:exporter].to_s) : model.class
+      model.class
     else
       self.class
     end
