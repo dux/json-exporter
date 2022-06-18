@@ -2,6 +2,7 @@ class JsonExporter
   EXPORTERS ||= {}
   FILTERS   ||= {before:{}, after:{}}
   OPTS      ||= {}
+  INFLECTOR ||= Dry::Inflector.new
 
   class << self
     def define *args, &block
@@ -11,7 +12,7 @@ class JsonExporter
         name, opts = args[0], args[1]
       end
 
-      name   = name ? __inflect(:classify, name.to_s) : to_s
+      name   = name ? INFLECTOR.classify(name.to_s) : to_s
       opts ||= {}
 
       EXPORTERS[name] = block
@@ -39,24 +40,11 @@ class JsonExporter
         instance_exec &block
       end
     end
-
-    def __inflect name, value
-      if value.respond_to?(name)
-        value.send name
-      else
-        unless @inflector
-          require 'dry-inflector'
-          @inflector = Dry::Inflector.new
-        end
-
-        @inflector.send name, value
-      end
-    end
   end
 
   ###
 
-  attr_accessor :json, :model, :opts, :user
+  attr_accessor :json, :model, :opts
 
   alias :response :json
 
@@ -69,7 +57,6 @@ class JsonExporter
     opts[:current_depth] ||= 0
     opts[:current_depth] += 1
 
-    @user  = opts[:user]
     @model = model
     @opts  = opts.to_hwia
     @block = __find_exporter
@@ -92,7 +79,7 @@ class JsonExporter
 
   # export object
   # export :org_users, key: :users
-  def export name, opts = {}
+  def export name, local_opts = {}
     return if @opts[:current_depth] > @opts[:export_depth]
 
     if name.is_a?(Symbol)
@@ -102,24 +89,25 @@ class JsonExporter
         cmodel = cmodel.all.map { |el| JsonExporter.export(el, @opts.dup) }
       end
     else
-      underscore = self.class.__inflect(:underscore, name.class.to_s).to_sym
+      underscore = INFLECTOR.underscore(name.class.to_s).to_sym
       name, cmodel = underscore, name
     end
 
-    @json[opts[:key] || name] = if [Array].include?(cmodel.class)
+    @json[name] = if [Array].include?(cmodel.class)
       cmodel
     elsif cmodel.nil?
       nil
     else
-      JsonExporter.export(cmodel, @opts)
+      new_opts = local_opts.merge(export_depth: @opts[:export_depth], current_depth: @opts[:current_depth])
+      self.class.new(cmodel, new_opts).render
     end
   end
 
   # add property to exporter
-  def property name, data = :_undefined
+  def property name, data = :_undefined, &block
     if block_given?
       hash_data = {}
-      data = yield hash_data
+      data = instance_exec hash_data, &block
       data = hash_data if hash_data.keys.first
     elsif data == :_undefined
       data = @model.send(name)
@@ -131,16 +119,16 @@ class JsonExporter
 
   def __find_exporter version = nil
     exporter = if @opts[:exporter]
-      self.class.__inflect :classify, @opts[:exporter].to_s
+      INFLECTOR.classify(@opts[:exporter].to_s)
     elsif self.class == JsonExporter
-      @opts[:exporter] ? self.class.__inflect(:classify, @opts[:exporter].to_s) : model.class
+      @opts[:exporter] ? INFLECTOR.classify(@opts[:exporter].to_s) : model.class
     else
       self.class
     end
 
     EXPORTERS[exporter.to_s] ||
     EXPORTERS[model.class.to_s] ||
-    raise('Exporter "%s" (:%s) not found' % [exporter, __inflect(:underscore, exporter.to_s)])
+    raise('Exporter "%s" (:%s) not found' % [exporter, INFLECTOR.underscore(exporter.to_s)])
   end
 end
 

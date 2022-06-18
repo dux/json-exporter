@@ -19,6 +19,10 @@ User = Struct.new(:name, :email) do
 end
 
 class SimpleExporter < JsonExporter
+  def user
+    opts[:user]
+  end
+
   before do
     opts[:version] ||= 1
   end
@@ -36,7 +40,7 @@ class SimpleExporter < JsonExporter
       prop :extra, :spicy
     end
 
-    prop :creator, export(model.user)
+    prop :creator, export(model.user, exporter: SimpleExporter)
   end
 
   define :generic_name do
@@ -46,7 +50,7 @@ class SimpleExporter < JsonExporter
   end
 
   define User do
-    export :company
+    export :company, version: opts.version
 
     prop :v_check, :version_one
 

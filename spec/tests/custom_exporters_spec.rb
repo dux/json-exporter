@@ -19,7 +19,7 @@ end
 ###
 
 describe FooCustomExporter do
-  let(:model) { Struct.new('SumStruct', :sum).new(2) }
+  let!(:model) { Struct.new(:sum).new(2) }
 
   it 'expects 2' do
     export = FooCustomExporter.export(model, exporter: :export_2)
