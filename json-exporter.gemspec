@@ -2,7 +2,7 @@ version  = File.read File.expand_path '.version', File.dirname(__FILE__)
 gem_name = 'json-exporter'
 
 Gem::Specification.new gem_name, version do |s|
-  s.summary     = 'Fast, simple & powerful object exporter'
+  s.summary     = 'Fast, simple & powerful object exporter to json'
   s.description = 'Fast ruby object JSON exporter, easy to use and extend'
   s.authors     = ["Dino Reic"]
   s.email       = 'reic.dino@gmail.com'
@@ -11,4 +11,5 @@ Gem::Specification.new gem_name, version do |s|
   s.license     = 'MIT'
 
   s.add_runtime_dependency 'hash_wia'
+  s.add_runtime_dependency 'dry-inflector'
 end

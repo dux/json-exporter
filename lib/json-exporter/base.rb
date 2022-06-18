@@ -11,7 +11,7 @@ class JsonExporter
         name, opts = args[0], args[1]
       end
 
-      name   = name ? name.to_s.classify : to_s
+      name   = name ? __inflect(:classify, name.to_s) : to_s
       opts ||= {}
 
       EXPORTERS[name] = block
@@ -37,6 +37,19 @@ class JsonExporter
       define_method name do
         super() if self.class != JsonExporter
         instance_exec &block
+      end
+    end
+
+    def __inflect name, value
+      if value.respond_to?(name)
+        value.send name
+      else
+        unless @inflector
+          require 'dry-inflector'
+          @inflector = Dry::Inflector.new
+        end
+
+        @inflector.send name, value
       end
     end
   end
@@ -89,7 +102,8 @@ class JsonExporter
         cmodel = cmodel.all.map { |el| JsonExporter.export(el, @opts.dup) }
       end
     else
-      name, cmodel = name.class.to_s.underscore.to_sym, name
+      underscore = self.class.__inflect(:underscore, name.class.to_s).to_sym
+      name, cmodel = underscore, name
     end
 
     @json[opts[:key] || name] = if [Array].include?(cmodel.class)
@@ -117,15 +131,16 @@ class JsonExporter
 
   def __find_exporter version = nil
     exporter = if @opts[:exporter]
-      # if exporter is defined, return custom exporter
-      @opts[:exporter].to_s.classify
+      self.class.__inflect :classify, @opts[:exporter].to_s
     elsif self.class == JsonExporter
-      @opts[:exporter] ? @opts[:exporter].to_s.classify : model.class
+      @opts[:exporter] ? self.class.__inflect(:classify, @opts[:exporter].to_s) : model.class
     else
       self.class
     end
 
-    EXPORTERS[exporter.to_s] || EXPORTERS[model.class.to_s] || raise('Exporter "%s" (:%s) not found' % [exporter, exporter.to_s.underscore])
+    EXPORTERS[exporter.to_s] ||
+    EXPORTERS[model.class.to_s] ||
+    raise('Exporter "%s" (:%s) not found' % [exporter, __inflect(:underscore, exporter.to_s)])
   end
 end
 
