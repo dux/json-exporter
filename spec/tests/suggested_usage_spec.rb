@@ -14,6 +14,12 @@ class Cow
   end
 end
 
+class Mouse
+  def kind
+    'mouse'
+  end
+end
+
 ###
 
 class PetsExporter < JsonExporter
@@ -47,8 +53,12 @@ end
 
 describe JsonExporter do
   it 'expects that is export simple' do
-    result  = PetsExporter.export(Cat.new)
+    result = PetsExporter.export(Cat.new)
     expect(result).to eq({kind: 'cat', num: 1, foo: :bar})
+  end
+
+  it 'expects to fail' do
+    expect{ PetsExporter.export(Mouse.new)}.to raise_error(StandardError)
   end
 
   it 'expects that is export simple' do

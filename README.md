@@ -188,9 +188,9 @@ SomeExporter.export(@model, exporter: :foo_1)
 SomeExporter.export(@model, exporter: :foo_2)
 ```
 
-### Suggested usage
+## Suggested usage
 
-Suggested usage for simple cases (should be the usual case)
+### simple cases (should be the usual case)
 
 * Create base class
 * Export all from there
@@ -198,24 +198,36 @@ Suggested usage for simple cases (should be the usual case)
 ```ruby
 class PetExporter < JsonExporter
   after do
-    json[:foo] = :bar
+    # ...
   end
 
   define Dog do
-    ...
+    # ...
   end
 end
+
+PetExporter.export(@dog)
 ```
 
+### extra exporter per class
 
+If you name class `DogPetExporter` and export `Dog` via `PetExporter`,
+`DogPetExporter` class will be used.
 
 ```ruby
-class DogPetExporter < PetExporter
-  define do
-    property :kind
-    property :klass, self.class
+class PetExporter < JsonExporter
+  after do
+    # ...
   end
 end
+
+class DogPetExporter < PetExporter
+  define do
+    # ...
+  end
+end
+
+PetExporter.export(@dog) or DogPetExporter.export(@dog)
 ```
 
 ## Tips

@@ -5,6 +5,7 @@ class JsonExporter
 
   class << self
     def define name = nil, &block
+      # if name is given, prepend name, if not, use class name as exporter name
       name = name ? "#{INFLECTOR.classify(name)}#{to_s}" : to_s
 
       EXPORTERS[name] = block
@@ -21,6 +22,8 @@ class JsonExporter
     def after &block
       __define_filter :after, &block
     end
+
+    private
 
     def __define_filter name, &block
       define_method name do
@@ -73,8 +76,8 @@ class JsonExporter
     if name.is_a?(Symbol)
       name, cmodel = name, @model.send(name)
 
-      if cmodel.respond_to?(:all) && cmodel.respond_to?(:first)
-        cmodel = cmodel.all.map { |el| JsonExporter.export(el, @opts.dup) }
+      if cmodel.respond_to?(:each) && cmodel.class.to_s.include?('Array')
+        cmodel = cmodel.map { |el| self.class.export(el, __opts) }
       end
     else
       underscored = INFLECTOR.underscore(name.class.to_s).to_sym
@@ -86,8 +89,7 @@ class JsonExporter
     elsif cmodel.nil?
       nil
     else
-      new_opts = local_opts.merge(export_depth: @opts[:export_depth], current_depth: @opts[:current_depth])
-      self.class.new(cmodel, new_opts).render
+      self.class.new(cmodel, __opts(local_opts)).render
     end
   end
 
@@ -114,7 +116,14 @@ class JsonExporter
       return block if block
     end
 
-    raise(%[Exporter for class "#{base}" not found.])
+    raise %[Exporter for class "#{base}" not found.]
+  end
+
+  def __opts start = {}
+    start.merge(
+      export_depth: @opts[:export_depth],
+      current_depth: @opts[:current_depth]
+    )
   end
 end
 
