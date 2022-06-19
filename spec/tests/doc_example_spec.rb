@@ -47,7 +47,7 @@ class ChildExporter < CustomExporter
 
     # once defined, params in opts and response can be accessed as method names
     # response is alias to json
-    response.foo.push 3
+    response[:foo].push 3
   end
 end
 

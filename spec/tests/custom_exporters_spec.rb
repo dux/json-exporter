@@ -18,13 +18,19 @@ end
 
 ###
 
-class Pet
+class Dog
   def kind
     'dog'
   end
 end
 
 class PetExporter < JsonExporter
+  after do
+    json[:foo] = :bar
+  end
+end
+
+class DogPetExporter < PetExporter
   define do
     property :kind
     property :klass, self.class
@@ -52,9 +58,10 @@ describe FooCustomExporter do
   end
 
   it 'expects to find a pet class' do
-    exported1 = PetExporter.export(Pet.new)
-    expect(exported1).to eq({kind: 'dog', klass: PetExporter})
+    exported1 = DogPetExporter.export(Dog.new)
+    expect(exported1).to eq({kind: 'dog', foo: :bar, klass: DogPetExporter})
 
-    expect{ JsonExporter.export(Pet.new) }.to raise_error(RuntimeError)
+    exported2 = PetExporter.export(Dog.new)
+    expect(exported2).to eq({kind: 'dog', foo: :bar, klass: PetExporter})
   end
 end

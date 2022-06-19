@@ -40,7 +40,7 @@ class SimpleExporter < JsonExporter
       prop :extra, :spicy
     end
 
-    prop :creator, export(model.user, exporter: SimpleExporter)
+    prop :creator, export(model.user)
   end
 
   define :generic_name do

@@ -1,29 +1,17 @@
 class JsonExporter
   EXPORTERS ||= {}
   FILTERS   ||= {before:{}, after:{}}
-  OPTS      ||= {}
   INFLECTOR ||= Dry::Inflector.new
 
   class << self
-    def define *args, &block
-      if args.first.is_a?(Hash)
-        name, opts = nil, args[0]
-      else
-        name, opts = args[0], args[1]
-      end
-
-      name   = name ? INFLECTOR.classify(name.to_s) : to_s
-      opts ||= {}
+    def define name = nil, &block
+      name = name ? "#{INFLECTOR.classify(name)}#{to_s}" : to_s
 
       EXPORTERS[name] = block
     end
 
     def export name, opts = nil
       new(name, opts || {}).render
-    end
-
-    def disable_wia!
-      OPTS[:wia] = false
     end
 
     def before &block
@@ -60,7 +48,7 @@ class JsonExporter
     @model = model
     @opts  = opts.to_hwia
     @block = __find_exporter
-    @json  = OPTS[:wia] == false ? {} : {}.to_hwia
+    @json  = {}
   end
 
   def render
@@ -89,8 +77,8 @@ class JsonExporter
         cmodel = cmodel.all.map { |el| JsonExporter.export(el, @opts.dup) }
       end
     else
-      underscore = INFLECTOR.underscore(name.class.to_s).to_sym
-      name, cmodel = underscore, name
+      underscored = INFLECTOR.underscore(name.class.to_s).to_sym
+      name, cmodel = underscored, name
     end
 
     @json[name] = if [Array].include?(cmodel.class)
@@ -118,17 +106,15 @@ class JsonExporter
   alias :prop :property
 
   def __find_exporter version = nil
-    exporter = if @opts[:exporter]
-      INFLECTOR.classify(@opts[:exporter].to_s)
-    elsif self.class == JsonExporter
-      model.class
-    else
-      self.class
+    base     = INFLECTOR.classify @opts[:exporter] || model.class.to_s
+    exporter = self.class.to_s
+
+    self.class.ancestors.map(&:to_s).each do |klass|
+      block = EXPORTERS[[base, klass].join] || EXPORTERS[klass]
+      return block if block
     end
 
-    EXPORTERS[exporter.to_s] ||
-    EXPORTERS[model.class.to_s] ||
-    raise('Exporter "%s" (:%s) not found' % [exporter, INFLECTOR.underscore(exporter.to_s)])
+    raise(%[Exporter for class "#{base}" not found.])
   end
 end
 

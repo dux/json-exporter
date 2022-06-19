@@ -163,11 +163,8 @@ class JsonExporter
     export :company      # same as "prop :company, export(model.company)"
     export model.company # same if model.company class name is Company
 
-    # you can add directly to response in 3 ways
-    # disable this feature with JsonExporter.disable_wia!
-    json[:foo]  = @user.foo  # as symbol
-    json['foo'] = @user.foo # string
-    json.foo    = @user.foo    # method
+    # you can add directly to response
+    json[:foo]  = @user.foo
   end
 end
 ```
@@ -189,6 +186,36 @@ end
 
 SomeExporter.export(@model, exporter: :foo_1)
 SomeExporter.export(@model, exporter: :foo_2)
+```
+
+### Suggested usage
+
+Suggested usage for simple cases (should be the usual case)
+
+* Create base class
+* Export all from there
+
+```ruby
+class PetExporter < JsonExporter
+  after do
+    json[:foo] = :bar
+  end
+
+  define Dog do
+    ...
+  end
+end
+```
+
+
+
+```ruby
+class DogPetExporter < PetExporter
+  define do
+    property :kind
+    property :klass, self.class
+  end
+end
 ```
 
 ## Tips
