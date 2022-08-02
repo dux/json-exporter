@@ -13,3 +13,9 @@ RSpec.configure do |config|
   # rspec -fd
   # config.formatter = :documentation # :progress, :html, :json, CustomFormatterClass
 end
+
+def rr data
+  puts '- start: %s - %s' % [data.class, caller[0].sub(__dir__+'/', 'spec/')]
+  ap data
+  puts '- end'
+end

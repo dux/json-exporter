@@ -40,8 +40,8 @@ class JsonExporter
   alias :response :json
 
   def initialize model, opts = {}
-    if model.is_a?(String) || model.is_a?(Symbol)
-      raise ArgumentError, 'model argument is not model instance (it is %s)' % model.class
+    if [String, Symbol].include?(model.class)
+      raise ArgumentError, 'model argument is not model instance (it is a %s)' % model.class
     end
 
     opts[:export_depth]  ||= 2 # 2 is default depth. if we encounter nested recursive exports, will go only to depth 2
@@ -62,6 +62,10 @@ class JsonExporter
     @json
   end
 
+  def merge data
+    data.each {|k,v| json[k] = v }
+  end
+
   def before; end
 
   def after; end
@@ -76,7 +80,7 @@ class JsonExporter
     if name.is_a?(Symbol)
       name, cmodel = name, @model.send(name)
 
-      if cmodel.respond_to?(:each) && cmodel.class.to_s.include?('Array')
+      if cmodel.class.to_s.include?('Array')
         cmodel = cmodel.map { |el| self.class.export(el, __opts) }
       end
     else

@@ -19,13 +19,25 @@ User = Struct.new(:name, :email) do
 end
 
 class SimpleExporter < JsonExporter
+  before do
+    opts[:version] ||= 1
+  end
+
+  after do
+    prop :foo, :bar
+
+    response[:meta] = {
+      class: model.class.to_s
+    }
+  end
+
+  ###
+
   def user
     opts[:user]
   end
 
-  before do
-    opts[:version] ||= 1
-  end
+  ###
 
   define :company do
     prop :name
@@ -64,15 +76,6 @@ class SimpleExporter < JsonExporter
       user && user.name.include?('dux') ? true : false
     end
   end
-end
-
-# default export after filter
-SimpleExporter.after do
-  prop :foo, :bar
-
-  response[:meta] = {
-    class: model.class.to_s
-  }
 end
 
 class GenericExporter < SimpleExporter
