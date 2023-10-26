@@ -35,7 +35,7 @@ class JsonExporter
 
   ###
 
-  attr_accessor :json, :model, :opts
+  attr_accessor :json, :model
 
   alias :response :json
 
@@ -52,6 +52,16 @@ class JsonExporter
     @opts  = opts.to_hwia
     @block = __find_exporter
     @json  = {}
+  end
+
+  def opts name = nil
+    if name
+      if @opts[name]
+        block_given? ? yield : true
+      end
+    else
+      @opts
+    end
   end
 
   def render
