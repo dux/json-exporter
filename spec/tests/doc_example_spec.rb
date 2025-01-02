@@ -13,11 +13,11 @@ class ApiExporter < JsonExporter
 end
 
 class UserExporter < ApiExporter
-  define do
+  define do |opt|
     prop :name
     prop :email
 
-    if opts[:full]
+    if opt[:full]
       prop :bio, 'Full user bio: %s' % model.bio
     end
   end

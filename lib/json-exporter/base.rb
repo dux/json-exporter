@@ -1,12 +1,23 @@
+# add inflector methods, if needed
+class String
+  %i(classify underscore).each do |name|
+    unless ''.respond_to?(name)
+      define_method name do
+        @dry_inflector ||= Dry::Inflector.new
+        @dry_inflector.send name, self
+      end
+    end
+  end
+end
+
 class JsonExporter
   EXPORTERS ||= {}
   FILTERS   ||= {before:{}, after:{}}
-  INFLECTOR ||= Dry::Inflector.new
 
   class << self
     def define name = nil, &block
       # if name is given, prepend name, if not, use class name as exporter name
-      name = name ? "#{INFLECTOR.classify(name)}#{to_s}" : to_s
+      name = name ? "#{name.to_s.classify}#{to_s}" : to_s
 
       EXPORTERS[name] = block
     end
@@ -28,7 +39,7 @@ class JsonExporter
     def __define_filter name, &block
       define_method name do
         super() if self.class != JsonExporter
-        instance_exec &block
+        instance_exec opts, &block
       end
     end
   end
@@ -66,7 +77,7 @@ class JsonExporter
 
   def render
     before
-    instance_exec &@block
+    instance_exec @opts, &@block
     after
 
     @json
@@ -94,7 +105,7 @@ class JsonExporter
         cmodel = cmodel.map { |el| self.class.export(el, __opts) }
       end
     else
-      underscored = INFLECTOR.underscore(name.class.to_s).to_sym
+      underscored = name.class.to_s.underscore.to_sym
       name, cmodel = underscored, name
     end
 
@@ -122,7 +133,7 @@ class JsonExporter
   alias :prop :property
 
   def __find_exporter version = nil
-    base     = INFLECTOR.classify @opts[:exporter] || model.class.to_s
+    base     = (@opts[:exporter] || model.class).to_s.classify
     exporter = self.class.to_s
 
     self.class.ancestors.map(&:to_s).each do |klass|
